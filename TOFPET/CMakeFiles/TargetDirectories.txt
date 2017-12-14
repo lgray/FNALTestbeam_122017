@@ -1,0 +1,9 @@
+/home/daq/sw_daq_tofpet2/CMakeFiles/convert_raw_to_coincidence.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/convert_raw_to_root.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/convert_raw_to_singles.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/daqd.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/print_raw.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/process_qdc_calibration.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/process_tdc_calibration.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/shm_raw_py.dir
+/home/daq/sw_daq_tofpet2/CMakeFiles/write_raw.dir

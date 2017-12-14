@@ -1,0 +1,24 @@
+Determining if files pfp_api.h exist failed with the following output:
+Change Dir: /home/daq/sw_daq_tofpet2/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/gmake "cmTryCompileExec974331672/fast"
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec974331672.dir/build.make CMakeFiles/cmTryCompileExec974331672.dir/build
+gmake[1]: Entering directory `/home/daq/sw_daq_tofpet2/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/daq/sw_daq_tofpet2/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec974331672.dir/CheckIncludeFiles.c.o
+/usr/bin/cc  -DLINUX -DLINUX    -o CMakeFiles/cmTryCompileExec974331672.dir/CheckIncludeFiles.c.o   -c /home/daq/sw_daq_tofpet2/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/daq/sw_daq_tofpet2/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:21: fatal error: pfp_api.h: No such file or directory
+ #include <pfp_api.h>
+                     ^
+compilation terminated.
+gmake[1]: *** [CMakeFiles/cmTryCompileExec974331672.dir/CheckIncludeFiles.c.o] Error 1
+gmake[1]: Leaving directory `/home/daq/sw_daq_tofpet2/CMakeFiles/CMakeTmp'
+gmake: *** [cmTryCompileExec974331672/fast] Error 2
+
+Source:
+/* */
+#include <pfp_api.h>
+
+
+int main(){return 0;}
+
