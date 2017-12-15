@@ -23,7 +23,6 @@
 #include "TFile.h"
 #include "TSystem.h"
 #include "TProfile.h"
-#include "../test/Event.h"
 
 #define MAX_TOFPET_CHANNEL 64
 using namespace std;

@@ -6,10 +6,10 @@ SRC = $(Repo)/src
 
 CPPFLAGS := $(shell root-config --cflags) -I$(INC)/include 
 LDFLAGS := $(shell root-config --glibs) 
-CPPFLAGS += -g -std=c++14
+CPPFLAGS += -g -std=c++1y
 
-TARGET = TOFPET
-SRC = coin_test.cc
+TARGET = ConvertTOFPETSinglesToEvents
+SRC = ConvertTOFPETSinglesToEvents.cc
 
 OBJ = $(SRC:.cc=.o)
 
