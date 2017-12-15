@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
     cout << "Error: Pixel file not found\n";
     return 0;
   }
-  TTree *pixelTree = (TTree*)pixelDataFile->Get("T1037");
+  TTree *pixelTree = (TTree*)pixelDataFile->Get("MAPSA");
   if (!pixelTree) {
     cout << "Error: Pixel Tree not found\n";
     return 0;
