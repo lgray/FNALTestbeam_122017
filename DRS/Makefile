@@ -6,7 +6,8 @@ SRC = $(Repo)/src
 
 CPPFLAGS := $(shell root-config --cflags) -I$(INC)/include 
 LDFLAGS := $(shell root-config --glibs) 
-CPPFLAGS += -g -std=c++14
+CPPFLAGS += -g -std=c++1y
+#CPPFLAGS += -g 
 
 TARGET = dat2root
 SRC = dat2root.cc src/Aux.cc src/Config.cc
