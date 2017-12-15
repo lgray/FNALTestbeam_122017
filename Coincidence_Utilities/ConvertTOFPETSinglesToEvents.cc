@@ -77,7 +77,7 @@ int main(int argc, char* argv[]){
 
   
   //========================Initialize local variables===================
-  double co_window=50000.0; //(50 ns)
+  double co_window=500000.0; //(500 ns)
   Int_t nentries_ana = (Int_t)anatree->GetEntries();
   
   Long64_t T_prev=300000000000;
