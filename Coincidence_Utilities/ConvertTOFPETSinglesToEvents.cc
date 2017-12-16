@@ -34,8 +34,12 @@ int main(int argc, char* argv[]){
   }
   const char *inputFileName = argv[1];
   const char *outFileName   = argv[2];
-
-outTree->SetAutoSave();
+  TFile *AnaFile=new TFile(inputFileName,"read");
+  TTree *anatree = (TTree*)AnaFile->Get("data");
+  
+  TFile *outFile = new TFile(outFileName,"recreate");
+  TTree *outTree = new TTree("data","data");
+  outTree->SetAutoSave();
 
   //=====================Initialize input tree variables========================= 
   UShort_t channelID;
