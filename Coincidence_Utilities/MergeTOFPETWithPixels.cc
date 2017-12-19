@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 
   //parse input list to get names of ROOT files
   if(argc < 4){
-    cerr << "usage MergeTOFPETWithDRS <PixelFile> <TOFPETEventFile> <OutputFile>" << endl;
+    cerr << "usage MergeTOFPETWithDRS <PixelFile> <NimPlusFile> <TOFPETEventFile> <OutputFile>" << endl;
     return -1;
   }
   const char *PixelInputFileName = argv[1];
@@ -57,31 +57,58 @@ int main(int argc, char* argv[]) {
   //**********************************
   vector<long> triggerNumber;
   vector<long long> NimPlusTimestamp;
-  FILE* NimPlusInputFile = fopen( NimPlusInputFileName, "r" );
-  ifstream myfile;
-  myfile.open(NimPlusInputFileName, ios::in | ios::binary);
+  FILE* NimPlusInputFile = fopen( NimPlusInputFileName, "rb" );
+  //cout << NimPlusInputFileName << endl;
+  //int cnt = 0;
+  //while(!feof(NimPlusInputFile) && cnt++ < 5)
+  //{
 
-  int maxEvents = 999999999;
-  for( int iEvent = 0; iEvent < maxEvents; iEvent++){ 
+  //  cout << fgetc(NimPlusInputFile) << endl;
+  // }
+  //return 0;
+  //ifstream myfile;
+  //myfile.open(NimPlusInputFileName, ios::in | ios::binary);
+  long long Prev_tS = -9999; //first time stamp is set to 0
+  long long curr_tS = -9999;
+  int maxPackets = 999999999;
+  for( int iPacket = 0; iPacket < maxPackets; iPacket++){ 
+  //while(!feof(NimPlusInputFile)){
     long tmpTrigger = 0;
     long long tmpTimestamp = 0;
+    
     long tmp = 0;
-    cout << "Event: " << iEvent << " : ";    
+    long QuadNo=0;
+    long long t_diff=0;
+    //cout << "Event: " << iPacket << " : ";    
 
     int x;
-    fread( &tmp, 4, 1, NimPlusInputFile);
+    int k=-4;
+    //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
+    //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
+    //unsigned char tmpC; 
+    fread( &QuadNo, 1, 1, NimPlusInputFile); //no. of quad words in each packet (1 quadword= 8 bytes= 64 bits)
+    cout <<QuadNo << " ";
+    fread( &tmp, 1, 1, NimPlusInputFile); //packet type -- 1,2 or 3
     cout << tmp << " ";
-    fread( &tmp, 4, 1, NimPlusInputFile);
+    fread( &tmp, 1, 1, NimPlusInputFile); // sequence ID -- increments by 1 each time
     cout << tmp << " ";
-    fread( &tmpTrigger, 4, 1, NimPlusInputFile);
-    cout << tmpTrigger << " ";
-    fread( &tmpTrigger, 4, 1, NimPlusInputFile);
-    cout << tmpTrigger << " ";
-    fread( &tmpTimestamp, 8, 1, NimPlusInputFile);
-    cout << tmpTimestamp << " ";
- 
+    for(int i=0;i<QuadNo*2;i++){
+      fread( &tmpTimestamp, 4, 1, NimPlusInputFile); 
+      cout << tmpTimestamp << " ";
+      if(k%6==0){
+	if(k==0 && iPacket==0){
+	  Prev_tS=tmpTimestamp;//set first timeStamp at start of run to 0
+	  //tmpTimestamp=0.;
+	}
+	curr_tS=tmpTimestamp;
+	t_diff=(curr_tS-Prev_tS)*3; // time difference in ns
+	if(t_diff*0.000000001>60.)cout<<"\n xxxxxxxxxxxxxxxxxxxxxxx"<<iPacket<<" "<<t_diff<<endl; // Change of Spill
+	Prev_tS=curr_tS;
+      }
+      k++;
+    }
     // cout <<  sizeof(int) << " " << sizeof(long int) << " " << sizeof(long long int);
-    cout << "\n";
+    cout << "\n--------------------------------------------------------------------------------\n";
     // // check for end of file
     if (feof(NimPlusInputFile)) break;
   }
@@ -108,7 +135,7 @@ int main(int argc, char* argv[]) {
   //create new normalized tree
   outputFile->cd();
   TTree *outputTree = PixelTree->CloneTree(0);
-  cout << "Events in the ntuple: " << PixelTree->GetEntries() << endl;
+  //cout << "Events in the ntuple: " << PixelTree->GetEntries() << endl;
   
   //branches for the TOFPET tree
   std::vector<UShort_t> *chID = 0;               
@@ -147,13 +174,13 @@ int main(int argc, char* argv[]) {
 
   // for (int n=0;n<PixelTree->GetEntries();n++) { 
   for (int n=0;n<100;n++) { 
-    if (n%100==0) cout << "Processed Event " << n << "\n";
+    //if (n%100==0) cout << "Processed Event " << n << "\n";
     PixelTree->GetEntry(n);
     
     if (n==0) FirstEventTimePixel = pixelEvent.bco; 
     
     if (!(pixelEvent.bco == -1 || pixelEvent.bco == 923)) {
-      cout << "Event: " << n << " | " << pixelEvent.trigger << " " << pixelEvent.bco*74e-9 << " | " << (pixelEvent.bco - PreviousEventTimePixel)*74 << "\n";
+      //cout << "Event: " << n << " | " << pixelEvent.trigger << " " << pixelEvent.bco*74e-9 << " | " << (pixelEvent.bco - PreviousEventTimePixel)*74 << "\n";
       PreviousEventTimePixel = pixelEvent.bco;
       PreviousEventTimeTrigger = pixelEvent.trigger;
     }
@@ -169,7 +196,7 @@ int main(int argc, char* argv[]) {
     
     if (chEnergy[32] > -9000 && chEnergy[41] > -9000) {
       
-      cout << "Event: " << TOFPETTriggerCounter << " | " << pixelEvent.trigger << " " << pixelEvent.bco << " | " << pixelEvent.bco - FirstEventTimePixel <<  " " << 1e-9*18.6*4*(pixelEvent.bco - FirstEventTimePixel)/pixelEvent.trigger << " | " << pixelEvent.bco - PreviousEventTimePixel << " " << 1e-9*18.6*4*(pixelEvent.bco - PreviousEventTimePixel) /(pixelEvent.trigger-PreviousEventTimeTrigger) << "\n";
+      //cout << "Event: " << TOFPETTriggerCounter << " | " << pixelEvent.trigger << " " << pixelEvent.bco << " | " << pixelEvent.bco - FirstEventTimePixel <<  " " << 1e-9*18.6*4*(pixelEvent.bco - FirstEventTimePixel)/pixelEvent.trigger << " | " << pixelEvent.bco - PreviousEventTimePixel << " " << 1e-9*18.6*4*(pixelEvent.bco - PreviousEventTimePixel) /(pixelEvent.trigger-PreviousEventTimeTrigger) << "\n";
       TOFPETTriggerCounter++;
     }
      
@@ -234,7 +261,7 @@ int main(int argc, char* argv[]) {
   //Close input files
   PixelInputFile->Close();
   TOFPETEventFile->Close();
-  cout << "Closing output file." << endl;
+  //cout << "Closing output file." << endl;
   outputFile->Close();
   delete outputFile;
 }
