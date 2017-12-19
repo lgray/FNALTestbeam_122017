@@ -59,16 +59,21 @@ int main(int argc, char* argv[]){
   anatree->SetBranchAddress("tqT",&tqT);
 
   //=====================Initialize output tree variables=========================
-  vector<UShort_t> chID;
   Long64_t chTime[64];
   float chEnergy[64];
   float chTqT[64];
   Int_t event;
-  event=1;
 
+ //initialize for event 1
+  event=1;
+  for(int k=0;k<64;k++){
+    chTime[k]=-9999;
+    chEnergy[k]=-9999;
+    chTqT[k]=-9999;
+  }
+  
   //==============set Branch addresses for all the output variables================  
   outTree->Branch("event",&event,"event/I");
-  outTree->Branch("chID","vector <UShort_t>",&chID);
   outTree->Branch("chTime",&chTime,"chTime[64]/L");
   outTree->Branch("chTqT",&chTqT,"chTqT[64]/F");
   outTree->Branch("chEnergy",&chEnergy,"chEnergy[64]/F");
@@ -87,12 +92,14 @@ int main(int argc, char* argv[]){
     Long64_t t_diff=T_prev-time;
     //if(i<1000)cout<<t_diff<<endl;
     //if(i<1000)cout<<i<<" "<<channelID<<" "<<time<<endl;
+   
     if(fabs(t_diff)>co_window && i!=0){
       outTree->Fill();
-      chID.clear();
+      
+      //initialize at beginning of each event
       for(int k=0;k<64;k++){
-	chTime[k]=-9999;
-	chEnergy[k]=-9999;
+      	chTime[k]=-9999;
+      	chEnergy[k]=-9999;
         chTqT[k]=-9999;
       }
       //if(i<1000)cout<<"===============================\n";
@@ -100,11 +107,11 @@ int main(int argc, char* argv[]){
     }
 
     T_prev=time;
-    chID.push_back(channelID);
+    
     chTime[channelID]=time;
     chEnergy[channelID]=energy;
     chTqT[channelID]=tqT;
-    //if(i<1000)cout<<channelID<<" "<<chTime[channelID]<<" "<<chEnergy[channelID]<<endl;
+    //if(i<1000)cout<<event << " : " << channelID<<" "<<chTime[channelID]<<" "<<chEnergy[channelID]<<endl;
   }
 
   AnaFile->Close();

@@ -10,14 +10,22 @@ CPPFLAGS += -g -std=c++1y
 
 TARGET = ConvertTOFPETSinglesToEvents
 SRC = ConvertTOFPETSinglesToEvents.cc
-
 OBJ = $(SRC:.cc=.o)
 
-all : $(TARGET)
+TARGET2 = MergeTOFPETWithPixels
+SRC2 = MergeTOFPETWithPixels.cc
+OBJ2 = $(SRC2:.cc=.o)
+
+
+all : $(TARGET) $(TARGET2)
 
 $(TARGET) : $(OBJ)
 	@echo $@
 	$(LD) $(CPPFLAGS) -o $(TARGET) $(OBJ) $(LDFLAGS)
+
+$(TARGET2) : $(OBJ2)
+	@echo $@
+	$(LD) $(CPPFLAGS) -o $(TARGET2) $(OBJ2) $(LDFLAGS)
 
 %.o : %.cc
 	@echo $@
