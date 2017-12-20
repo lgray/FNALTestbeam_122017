@@ -47,6 +47,7 @@ int main(int argc, char* argv[]) {
     cerr << "usage MergeTOFPETWithDRS <PixelFile> <NimPlusFile> <TOFPETEventFile> <OutputFile>" << endl;
     return -1;
   }
+  int debugLevel = -1;
   const char *PixelInputFileName = argv[1];
   const char *NimPlusInputFileName = argv[2];
   const char *TOFPETEventFileName   = argv[3];
@@ -55,7 +56,7 @@ int main(int argc, char* argv[]) {
   //**********************************
   //First read in the NimPlus timestamps
   //**********************************
-  vector<long> triggerNumber;
+  long triggerNumber=-1;
   vector<long long> NimPlusTimestamp;
   FILE* NimPlusInputFile = fopen( NimPlusInputFileName, "rb" );
   //cout << NimPlusInputFileName << endl;
@@ -70,11 +71,14 @@ int main(int argc, char* argv[]) {
   //myfile.open(NimPlusInputFileName, ios::in | ios::binary);
   long long Prev_tS = -9999; //first time stamp is set to 0
   long long curr_tS = -9999;
+  int eventWordIndex=0;
+  bool isNewTrigger = false;
   int maxPackets = 999999999;
   for( int iPacket = 0; iPacket < maxPackets; iPacket++){ 
   //while(!feof(NimPlusInputFile)){
     long tmpTrigger = 0;
     long long tmpTimestamp = 0;
+    long long tmpWord = 0;
     
     long tmp = 0;
     long QuadNo=0;
@@ -82,36 +86,60 @@ int main(int argc, char* argv[]) {
     //cout << "Event: " << iPacket << " : ";    
 
     int x;
-    int k=-4;
+    // int k=-4;
     //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
     //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
     //unsigned char tmpC; 
     fread( &QuadNo, 1, 1, NimPlusInputFile); //no. of quad words in each packet (1 quadword= 8 bytes= 64 bits)
-    cout <<QuadNo << " ";
+    if (debugLevel > 100) cout <<QuadNo << " ";
     fread( &tmp, 1, 1, NimPlusInputFile); //packet type -- 1,2 or 3
-    cout << tmp << " ";
+    if (debugLevel > 100) cout << tmp << " ";
     fread( &tmp, 1, 1, NimPlusInputFile); // sequence ID -- increments by 1 each time
-    cout << tmp << " ";
+    if (debugLevel > 100) cout << tmp << "\n ";
     for(int i=0;i<QuadNo*2;i++){
-      fread( &tmpTimestamp, 4, 1, NimPlusInputFile); 
-      cout << tmpTimestamp << " ";
-      if(k%6==0){
-	if(k==0 && iPacket==0){
-	  Prev_tS=tmpTimestamp;//set first timeStamp at start of run to 0
-	  //tmpTimestamp=0.;
+
+      //read 32-bit words
+      fread( &tmpWord, sizeof(float), 1, NimPlusInputFile); 
+      if (debugLevel > 100) cout << tmpWord << "(k=" << eventWordIndex << ") ";
+
+      //this is the trigger number word
+      if (eventWordIndex%6==2) {
+	//a new trigger
+	if (tmpWord > triggerNumber) {
+	  triggerNumber++;
+	  isNewTrigger = true;
+	  if (debugLevel > 10) cout << "Trigger Number: " << tmpWord << " : ";
 	}
-	curr_tS=tmpTimestamp;
-	t_diff=(curr_tS-Prev_tS)*3; // time difference in ns
-	if(t_diff*0.000000001>60.)cout<<"\n xxxxxxxxxxxxxxxxxxxxxxx"<<iPacket<<" "<<t_diff<<endl; // Change of Spill
-	Prev_tS=curr_tS;
       }
-      k++;
+
+      if(eventWordIndex%6==4){
+	if (isNewTrigger) {
+	  NimPlusTimestamp.push_back(tmpWord);
+	  if (debugLevel > 10) cout << tmpWord << "\n";
+	  isNewTrigger = false;
+	}
+
+      	// if(k==0 && iPacket==0){
+      	//   Prev_tS=tmpTimestamp;//set first timeStamp at start of run to 0
+      	//   //tmpTimestamp=0.;
+      	// }
+      	// curr_tS=tmpTimestamp;
+      	// t_diff=(curr_tS-Prev_tS)*3; // time difference in ns
+      	// if(t_diff*0.000000001>60.)cout<<"\n xxxxxxxxxxxxxxxxxxxxxxx"<<iPacket<<" "<<t_diff<<endl; // Change of Spill
+      	// Prev_tS=curr_tS;
+      }
+      eventWordIndex++;
+
     }
-    // cout <<  sizeof(int) << " " << sizeof(long int) << " " << sizeof(long long int);
-    cout << "\n--------------------------------------------------------------------------------\n";
+    if (debugLevel > 100) cout << "\n--------------------------------------------------------------------------------\n";
     // // check for end of file
     if (feof(NimPlusInputFile)) break;
   }
+
+  for (int i=0; i<NimPlusTimestamp.size();i++) {
+    cout << "Trigger: " << i << " " << NimPlusTimestamp[i] << "\n";
+  }
+
 
   return 0;
 
