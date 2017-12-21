@@ -48,104 +48,160 @@ int main(int argc, char* argv[]) {
     return -1;
   }
   int debugLevel = -1;
+  debugLevel = 200;
   const char *PixelInputFileName = argv[1];
   const char *NimPlusInputFileName = argv[2];
   const char *TOFPETEventFileName   = argv[3];
   const char *outFileName   = argv[4];
 
-  //**********************************
-  //First read in the NimPlus timestamps
-  //**********************************
-  long triggerNumber=-1;
-  vector<long long> NimPlusTimestamp;
-  FILE* NimPlusInputFile = fopen( NimPlusInputFileName, "rb" );
-  //cout << NimPlusInputFileName << endl;
-  //int cnt = 0;
-  //while(!feof(NimPlusInputFile) && cnt++ < 5)
-  //{
 
-  //  cout << fgetc(NimPlusInputFile) << endl;
-  // }
-  //return 0;
-  //ifstream myfile;
-  //myfile.open(NimPlusInputFileName, ios::in | ios::binary);
-  long long Prev_tS = -9999; //first time stamp is set to 0
-  long long curr_tS = -9999;
-  int eventWordIndex=0;
-  bool isNewTrigger = false;
-  int maxPackets = 999999999;
-  for( int iPacket = 0; iPacket < maxPackets; iPacket++){ 
-  //while(!feof(NimPlusInputFile)){
-    long tmpTrigger = 0;
-    long long tmpTimestamp = 0;
-    long long tmpWord = 0;
+
+  // //**********************************
+  // //First read in the NimPlus timestamps
+  // //**********************************
+  // long triggerNumber=-1;
+  // vector<long long> NimPlusTimestamp;
+  // vector<long long> NimPlusTimestampDelay;
+  // FILE* NimPlusInputFile = fopen( NimPlusInputFileName, "rb" );
+  // //cout << NimPlusInputFileName << endl;
+  // //int cnt = 0;
+  // //while(!feof(NimPlusInputFile) && cnt++ < 5)
+  // //{
+
+  // //  cout << fgetc(NimPlusInputFile) << endl;
+  // // }
+  // //return 0;
+  // //ifstream myfile;
+  // //myfile.open(NimPlusInputFileName, ios::in | ios::binary);
+  // int eventWordIndex=0;
+  // long long firstTimeEver = 0;
+
+  // firstTimeEver = 0x89abcdef;
+
+  // cout << "BYTE order test" << endl;
+  // cout << hex << firstTimeEver << dec << endl;
+  // for(int i=0;i<4;++i)
+  //   {
+  //     cout << hex << (unsigned int)(((unsigned char *)(&firstTimeEver))[i]) << dec << " -----\n";
+  //     (((unsigned char *)(&firstTimeEver))[i]) = i;
+  //   }
+  // cout << hex << firstTimeEver << dec << endl;
+
+  // for(int i=0;i<4;++i)
+  //   {
+  //     cout << hex << (unsigned int)(((unsigned char *)(&firstTimeEver))[i]) << dec << " -----\n";
+  //     (((unsigned char *)(&firstTimeEver))[i]) = 0;
+  //   }
+  // cout << hex << firstTimeEver << dec << endl;
+
+  // firstTimeEver = 0;
+
+  // bool isNewTrigger = false;
+  // int maxPackets = 999999999;
+  // for( int iPacket = 0; iPacket < maxPackets; iPacket++){ 
+  // //while(!feof(NimPlusInputFile)){
+  //   long tmpTrigger = 0;
+  //   long long tmpTimestamp = 0;
+  //   long long tmpWord = 0;
     
-    long tmp = 0;
-    long QuadNo=0;
-    long long t_diff=0;
-    //cout << "Event: " << iPacket << " : ";    
+  //   long tmp = 0;
+  //   long QuadNo=0;
+  //   long long t_diff=0;
+  //   //cout << "Event: " << iPacket << " : ";    
 
-    int x;
-    // int k=-4;
-    //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
-    //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
-    //unsigned char tmpC; 
-    fread( &QuadNo, 1, 1, NimPlusInputFile); //no. of quad words in each packet (1 quadword= 8 bytes= 64 bits)
-    if (debugLevel > 100) cout <<QuadNo << " ";
-    fread( &tmp, 1, 1, NimPlusInputFile); //packet type -- 1,2 or 3
-    if (debugLevel > 100) cout << tmp << " ";
-    fread( &tmp, 1, 1, NimPlusInputFile); // sequence ID -- increments by 1 each time
-    if (debugLevel > 100) cout << tmp << "\n ";
-    for(int i=0;i<QuadNo*2;i++){
+  //   int x;
+  //   // int k=-4;
+  //   //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
+  //   //if(iPacket<5){myfile>>x;cout<<static_cast<long>(x)<<endl;}
+  //   //unsigned char tmpC; 
+  //   fread( &QuadNo, 1, 1, NimPlusInputFile); //no. of quad words in each packet (1 quadword= 8 bytes= 64 bits)
+  //   if (debugLevel > 100) cout <<QuadNo << " ";
+  //   fread( &tmp, 1, 1, NimPlusInputFile); //packet type -- 1,2 or 3
+  //   if (debugLevel > 100) cout << tmp << " ";
+  //   fread( &tmp, 1, 1, NimPlusInputFile); // sequence ID -- increments by 1 each time
+  //   if (debugLevel > 100) cout << tmp << "\n ";
+  //   for(int i=0;i<QuadNo*2;i++){
 
-      //read 32-bit words
-      fread( &tmpWord, sizeof(float), 1, NimPlusInputFile); 
-      if (debugLevel > 100) cout << tmpWord << "(k=" << eventWordIndex << ") ";
+  //     //read 32-bit words
+  //     tmpWord = 0;
+  //     fread( &tmpWord, sizeof(float), 1, NimPlusInputFile); 
+  //     if (debugLevel > 100) cout << "\t" << (eventWordIndex%6) << "-" <<  tmpWord << " ";
+  //     //cout << "(k=" << eventWordIndex << ") ";
 
-      //this is the trigger number word
-      if (eventWordIndex%6==2) {
-	//a new trigger
-	if (tmpWord > triggerNumber) {
-	  triggerNumber++;
-	  isNewTrigger = true;
-	  if (debugLevel > 10) cout << "Trigger Number: " << tmpWord << " : ";
-	}
-      }
+  //     //this is the trigger number word
+  //     if (eventWordIndex%6==2) {
+  // 	//a new trigger
+  // 	if (tmpWord > triggerNumber) {
+  // 	  triggerNumber++;
+  // 	  isNewTrigger = true;
+  // 	  //if (debugLevel > 10) cout << "Trigger Number: " << tmpWord << " : ";
+  // 	}
+  //     }
 
-      if(eventWordIndex%6==4){
-	if (isNewTrigger) {
-	  NimPlusTimestamp.push_back(tmpWord);
-	  if (debugLevel > 10) cout << tmpWord << "\n";
-	  isNewTrigger = false;
-	}
+  //     if(eventWordIndex%6==4){
+  // 	if (isNewTrigger) {
 
-      	// if(k==0 && iPacket==0){
-      	//   Prev_tS=tmpTimestamp;//set first timeStamp at start of run to 0
-      	//   //tmpTimestamp=0.;
-      	// }
-      	// curr_tS=tmpTimestamp;
-      	// t_diff=(curr_tS-Prev_tS)*3; // time difference in ns
-      	// if(t_diff*0.000000001>60.)cout<<"\n xxxxxxxxxxxxxxxxxxxxxxx"<<iPacket<<" "<<t_diff<<endl; // Change of Spill
-      	// Prev_tS=curr_tS;
-      }
-      eventWordIndex++;
+  // 	  if(firstTimeEver == 0 || 
+  // 	     (NimPlusTimestamp.size() && 
+  // 	      (tmpWord-NimPlusTimestamp[NimPlusTimestamp.size()-1])*3 > 1000000000))
+  // 	    firstTimeEver = tmpWord;
 
-    }
-    if (debugLevel > 100) cout << "\n--------------------------------------------------------------------------------\n";
-    // // check for end of file
-    if (feof(NimPlusInputFile)) break;
-  }
+  // 	  if(NimPlusTimestamp.size() &&
+  // 	      NimPlusTimestamp[NimPlusTimestamp.size()-1] > tmpWord)
+  // 	    {
+  // 	      cout << "????";
+  // 	      tmpWord += ((long long)(1)<<32);
+  // 	    }
+  // 	  NimPlusTimestamp.push_back(tmpWord);
+	  
+  // 	  if (debugLevel > 100) cout << "-0x" << hex << tmpWord << dec << "\t\t-DIFF=" << 
+  // 				  ((tmpWord-firstTimeEver)*3.0f)/1000000.0f << "ms ";
+  // 	  isNewTrigger = false;
+  // 	}
 
-  for (int i=0; i<NimPlusTimestamp.size();i++) {
-    cout << "Trigger: " << i << " " << NimPlusTimestamp[i] << "\n";
-  }
+  //     	// if(k==0 && iPacket==0){
+  //     	//   Prev_tS=tmpTimestamp;//set first timeStamp at start of run to 0
+  //     	//   //tmpTimestamp=0.;
+  //     	// }
+  //     	// curr_tS=tmpTimestamp;
+  //     	// t_diff=(curr_tS-Prev_tS)*3; // time difference in ns
+  //     	// if(t_diff*0.000000001>60.)cout<<"\n xxxxxxxxxxxxxxxxxxxxxxx"<<iPacket<<" "<<t_diff<<endl; // Change of Spill
+  //     	// Prev_tS=curr_tS;
+  //     }
+
+  //     if(eventWordIndex%6==5){
+  // 	cout << endl;
+  //     }
+  //     eventWordIndex++;
+
+  //   }
+  //   if (debugLevel > 100) cout << "\n--------------------------------------------------------------------------------\n";
+  //   // // check for end of file
+  //   if (feof(NimPlusInputFile)) break;
+  // }
+
+  // //timestamps are in units of clock cycles (3ns each step)
+  // for (int i=0; i<NimPlusTimestamp.size();i++) {
+  //   // cout << "Trigger: " << i << " " << NimPlusTimestamp[i] << "\n";
+  //   if (i==0) {
+  //     NimPlusTimestampDelay.push_back(0);
+  //   } else {
+  //     if (NimPlusTimestamp[i] - NimPlusTimestamp[i-1] > 0) {
+  // 	NimPlusTimestampDelay.push_back( (NimPlusTimestamp[i] - NimPlusTimestamp[i-1]) * 3); //delays are in units of ns
+  //     } else {
+  // 	NimPlusTimestampDelay.push_back( (NimPlusTimestamp[i] + 4294967296 - NimPlusTimestamp[i-1]) * 3);
+  //     }
+  //   }
+  //   cout << "Trigger: " << i << " " << NimPlusTimestamp[i] << " : " << NimPlusTimestampDelay[i] << "\n";
+  // }
 
 
-  return 0;
 
 
 
-
+  //*************************************************************
+  // Read the TOFPET file
+  //*************************************************************
 
   //create output file
   TFile *outputFile = new TFile(outFileName, "RECREATE");
@@ -190,44 +246,27 @@ int main(int argc, char* argv[]) {
 
 
 
-  int TOFPETEventIndex = 0;
-  Long64_t FirstEventTimeTOFPET = -999;
-  Long64_t FirstEventTimePixel = -999;
-
-  Long64_t PreviousEventTimePixel = -999;
-  int PreviousEventTimeTrigger = 0;
-  Long64_t PreviousEventTimeTOFPET = -999;
-  int TOFPETTriggerCounter = 1;
 
 
-  // for (int n=0;n<PixelTree->GetEntries();n++) { 
-  for (int n=0;n<100;n++) { 
-    //if (n%100==0) cout << "Processed Event " << n << "\n";
-    PixelTree->GetEntry(n);
-    
-    if (n==0) FirstEventTimePixel = pixelEvent.bco; 
-    
-    if (!(pixelEvent.bco == -1 || pixelEvent.bco == 923)) {
-      //cout << "Event: " << n << " | " << pixelEvent.trigger << " " << pixelEvent.bco*74e-9 << " | " << (pixelEvent.bco - PreviousEventTimePixel)*74 << "\n";
-      PreviousEventTimePixel = pixelEvent.bco;
-      PreviousEventTimeTrigger = pixelEvent.trigger;
-    }
-  }
-  return 0;
+  long long previousTimestamp_TOFPET = 0;
+  long long FirstEventTimeTOFPET = 0;
+  int TriggerIndexTOFPET = 0;
 
-
-  //    for(int q=TOFPETEventIndex; q < TOFPETEventTree->GetEntries(); q++) {
   for(int q=0; q < TOFPETEventTree->GetEntries(); q++) {
+
+
     TOFPETEventTree->GetEntry(q);
     
     if (q==0) FirstEventTimeTOFPET = chTime[41];
     
-    if (chEnergy[32] > -9000 && chEnergy[41] > -9000) {
+    if (chEnergy[32] != -9999) {
       
-      //cout << "Event: " << TOFPETTriggerCounter << " | " << pixelEvent.trigger << " " << pixelEvent.bco << " | " << pixelEvent.bco - FirstEventTimePixel <<  " " << 1e-9*18.6*4*(pixelEvent.bco - FirstEventTimePixel)/pixelEvent.trigger << " | " << pixelEvent.bco - PreviousEventTimePixel << " " << 1e-9*18.6*4*(pixelEvent.bco - PreviousEventTimePixel) /(pixelEvent.trigger-PreviousEventTimeTrigger) << "\n";
-      TOFPETTriggerCounter++;
-    }
-     
+      long long timeElapsedSincePreviousTrigger = chTime[32] - previousTimestamp_TOFPET;
+      previousTimestamp_TOFPET = chTime[32];
+
+      cout << "Trigger: " << TriggerIndexTOFPET << " | " << chTime[32] << " " << timeElapsedSincePreviousTrigger << "\n";
+      TriggerIndexTOFPET++;
+    }     
     // //match
     // if (false) {
     //   TOFPETEventIndex = 0;
@@ -238,6 +277,38 @@ int main(int argc, char* argv[]) {
 
   
   return 0;
+
+
+
+
+
+
+
+
+  // int TOFPETEventIndex = 0;
+  // Long64_t FirstEventTimeTOFPET = -999;
+  // Long64_t FirstEventTimePixel = -999;
+
+  // Long64_t PreviousEventTimePixel = -999;
+  // int PreviousEventTimeTrigger = 0;
+  // Long64_t PreviousEventTimeTOFPET = -999;
+  // int TOFPETTriggerCounter = 1;
+
+
+  // // for (int n=0;n<PixelTree->GetEntries();n++) { 
+  // for (int n=0;n<100;n++) { 
+  //   //if (n%100==0) cout << "Processed Event " << n << "\n";
+  //   PixelTree->GetEntry(n);
+    
+  //   if (n==0) FirstEventTimePixel = pixelEvent.bco; 
+    
+  //   if (!(pixelEvent.bco == -1 || pixelEvent.bco == 923)) {
+  //     //cout << "Event: " << n << " | " << pixelEvent.trigger << " " << pixelEvent.bco*74e-9 << " | " << (pixelEvent.bco - PreviousEventTimePixel)*74 << "\n";
+  //     PreviousEventTimePixel = pixelEvent.bco;
+  //     PreviousEventTimeTrigger = pixelEvent.trigger;
+  //   }
+  // }
+  // return 0;
 
 
 
