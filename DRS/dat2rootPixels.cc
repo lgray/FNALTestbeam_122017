@@ -33,6 +33,15 @@ TStyle* style;
 
 int graphic_init();
 
+unsigned createMask(unsigned a, unsigned b)
+{
+   unsigned r = 0;
+   for (unsigned i=a; i<=b; i++)
+       r |= 1 << i;
+
+   return r;
+}
+
 std::string ParseCommandLine( int argc, char* argv[], std::string opt )
 {
   for (int i = 1; i < argc; i++ )
@@ -276,6 +285,10 @@ int main(int argc, char **argv) {
   //*************************
   //Event Loop
   //*************************
+  
+  //define timestamps
+  vector<long long> DRSTimestamp;
+  vector<long long> DRSTimestampDelay;
 
   std::cout << "\n=== Processing input data ===\n" << std::endl;
   int nGoodEvents = 0;
@@ -570,11 +583,40 @@ int main(int argc, char **argv) {
       }
       
       dummy = fread( &event_header, sizeof(uint), 1, fpin);
+
+      if (group == 0) {
+	unsigned bitmask = createMask(0,30);
+	unsigned result = bitmask & event_header;
+	//cout << "Group Trigger time: " << event_header << " : " << bitmask << " : " << result << "\n";
+	DRSTimestamp.push_back(result);
+      }
     }
     
     tree->Fill();
-    nGoodEvents++;
+    nGoodEvents++; 
   }
+
+  // //Timing debugging
+  // long long tmpRunningTimestamp = 0;
+  // for (int i=0; i<DRSTimestamp.size();i++) {
+  //   if (i==0) {
+  //     DRSTimestampDelay.push_back(0);
+  //   } else {
+  //     if (DRSTimestamp[i] - DRSTimestamp[i-1] > 0) {
+  // 	DRSTimestampDelay.push_back( (DRSTimestamp[i] - DRSTimestamp[i-1]) * 8.5); //delays are in units of ns
+  //     } else {
+  // 	DRSTimestampDelay.push_back( (DRSTimestamp[i] + 1073741824 - DRSTimestamp[i-1]) * 8.5);
+  //     }
+  //   }
+  //   cout << "Trigger: " << i << " | " << DRSTimestamp[i] << " | " 
+  // 	 << (tmpRunningTimestamp +  DRSTimestampDelay[i])*1e-9*0.96375 << " : " 
+  // 	 << DRSTimestampDelay[i]*1e-9 << "\n";
+  //   //if (i>1) {
+  //     tmpRunningTimestamp +=  DRSTimestampDelay[i];
+  //     //}
+  // }
+
+
 
   fclose(fpin);
   cout << "\nProcessed total of " << nGoodEvents << " events\n";
