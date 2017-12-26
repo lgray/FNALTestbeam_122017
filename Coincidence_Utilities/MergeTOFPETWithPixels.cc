@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     return -1;
   }
   int debugLevel = -1;
-  debugLevel = 200;
+  debugLevel = -1;
   const char *PixelInputFileName = argv[1];
   const char *TrackerTimingInputFileName = argv[2];
   const char *TOFPETEventFileName   = argv[3];
@@ -237,6 +237,18 @@ int main(int argc, char* argv[]) {
     //cout << "Timestamp : " << i << " : " << TrackerTimestamps[i] << "\n";
   }
 
+  //reset the counter whenever there is more than 1 second between one event and the next
+  vector<double> TrackerTimestampsResetted;
+  int previousResetIndex = 0;
+  for (int i=0; i<TrackerTimestamps.size();i++) {    
+    TrackerTimestampsResetted.push_back(TrackerTimestamps[i]);
+    if (i==0) continue;    
+    //cout << "test: " << i << " : " << TrackerTimestamps[i] << " " << TrackerTimestamps[i-1] << " " << TrackerTimestamps[i] - TrackerTimestamps[i-1] << "\n";
+    if (TrackerTimestamps[i] - TrackerTimestamps[i-1] > 1.0) previousResetIndex = i;
+    TrackerTimestampsResetted[i] = TrackerTimestamps[i] - TrackerTimestamps[previousResetIndex];
+    //cout << "Tracker Timer: " << i << " : " << TrackerTimestampsResetted[i] << "\n";
+  }
+  
 
   //*************************************************************
   // Read the TOFPET file
@@ -257,7 +269,7 @@ int main(int argc, char* argv[]) {
  
   //create new normalized tree
   outputFile->cd();
-  TTree *outputTree = PixelTree->CloneTree(0);
+  TTree *outputTree = TOFPETEventTree->CloneTree(0);
   //cout << "Events in the ntuple: " << PixelTree->GetEntries() << endl;
   
   //branches for the TOFPET tree
@@ -279,6 +291,24 @@ int main(int argc, char* argv[]) {
   //branches for the PixelTree
   FTBFPixelEvent pixelEvent;
   PixelTree->SetBranchAddress("event",&pixelEvent);
+  float xIntercept;
+  float yIntercept;
+  float xSlope;
+  float ySlope;
+  float x1;
+  float y1;
+  float x2;
+  float y2;
+  int ntracks;
+  outputTree->Branch("xIntercept", &xIntercept, "xIntercept/F");
+  outputTree->Branch("yIntercept", &yIntercept, "yIntercept/F");
+  outputTree->Branch("xSlope", &xSlope, "xSlope/F");
+  outputTree->Branch("ySlope", &ySlope, "ySlope/F");
+  outputTree->Branch("x1", &x1, "x1/F");
+  outputTree->Branch("y1", &y1, "y1/F");
+  outputTree->Branch("x2", &x2, "x2/F");
+  outputTree->Branch("y2", &y2, "y2/F");
+  outputTree->Branch("ntracks", &ntracks, "ntracks/I");
 
 
   vector<long long> TOFPETTimestamp;
@@ -292,6 +322,8 @@ int main(int argc, char* argv[]) {
   long long FirstEventTimeTOFPET = 0;
   int TriggerIndexTOFPET = 0;
   int PreviouslyMatchedTriggerNumber = -1;
+  int TOFPETPreviousResetIndex = 0;
+  double TOFPETPreviousResetTime = 0;
   for(int q=0; q < TOFPETEventTree->GetEntries(); q++) {
 
     TOFPETEventTree->GetEntry(q);
@@ -299,128 +331,107 @@ int main(int argc, char* argv[]) {
     int MatchedTriggerIndex = -1;
     if (chEnergy[32] != -9999) {
       TOFPETTimestamp.push_back(chTime[32]);
-      if (TriggerIndexTOFPET == 0) FirstEventTimeTOFPET = chTime[32];
-      long long timeElapsedSincePreviousTrigger = chTime[32] - previousTimestamp_TOFPET;
+      if (TriggerIndexTOFPET == 0) {
+	FirstEventTimeTOFPET = chTime[32];
+	TOFPETPreviousResetTime = chTime[32]*1e-12*0.96;
+	previousTimestamp_TOFPET = chTime[32];
+      }
+      double timeElapsedSincePreviousTrigger = (chTime[32] - previousTimestamp_TOFPET)* 1e-12 * 0.96;
       previousTimestamp_TOFPET = chTime[32];
  
       double timeElapsed = (chTime[32] - FirstEventTimeTOFPET)*1e-12*0.96; //0.96 factor is required to match NIMPlus clock speed.
+      
+      //reset timer if more than 1 second since last trigger
+      if (timeElapsedSincePreviousTrigger > 1.0) {
+	TOFPETPreviousResetIndex = q;
+	TOFPETPreviousResetTime = timeElapsed;
+      }
 
-      cout << "Trigger:\t " << TriggerIndexTOFPET << " \t " << chTime[32] << " \t " 
+      double timeElapsedResetted = 0;
+      if (TriggerIndexTOFPET > 0) timeElapsedResetted = timeElapsed - TOFPETPreviousResetTime;
+
+
+      if (debugLevel > 100) {
+	cout << "Trigger:\t " << TriggerIndexTOFPET << " \t " << chTime[32] << " \t " 
   	   << timeElapsed << " \t " 
-  	   << timeElapsedSincePreviousTrigger * 1e-12 * 0.96 << "\t"
+  	   << timeElapsedResetted << " \t " 
+	   << timeElapsedSincePreviousTrigger << "\t"
+	   << TOFPETPreviousResetTime << "\t"
 	   << "\n"; 
+      }
 
 
       //Try to find matching trigger in Tracking timestamps
       bool stopSearching = false;
       for (int p=PreviouslyMatchedTriggerNumber+1; p<TrackerTimestamps.size() && !stopSearching; p++) {
-	cout << "TOFPET Event " << q << " " << timeElapsed << " -> " << p << " " << TrackerTimestamps[p] 
-	     << " | " << fabs(TrackerTimestamps[p]-timeElapsed) << "\n";
-	if ( fabs(TrackerTimestamps[p]-timeElapsed) < 0.0005) {
-	  cout << "matched\n";
+	if (debugLevel > 100) {
+	  cout << "TOFPET Event " << q << " " << timeElapsed << " , " << timeElapsedResetted 
+	       << " -> " << p << " " << TrackerTimestamps[p] << " , " << TrackerTimestampsResetted[p] 
+	       << " | " << fabs(TrackerTimestamps[p]-timeElapsed) << " , " 
+	       << fabs(TrackerTimestampsResetted[p] - timeElapsedResetted) << " "
+	       << "\n";
+	}
+	if ( fabs(TrackerTimestamps[p]-timeElapsed) < 0.1
+	     && fabs(TrackerTimestampsResetted[p] - timeElapsedResetted) < 0.0005
+	     ) {	 
+	  if (debugLevel > 100) cout << "matched\n";
 	  MatchedTriggerIndex = p;
 	  PreviouslyMatchedTriggerNumber = p;
 	  break;
 	} else {
-	  cout << "BAD!!\n";
-	  if ( TrackerTimestamps[p]-timeElapsed > 0.005) {
+	  if (debugLevel > 100) cout << "BAD!!\n";
+	  if ( TrackerTimestamps[p]-timeElapsed > 0.1) {
 	    stopSearching = true;
 	  }
 	}
       }
 
-      cout << "Matched : " << MatchedTriggerIndex << "\n";
-      if (stopSearching) cout << "stopped searching, skip events\n";
-
-      TriggerIndexTOFPET++;
-    
-    }
-    // //match
-    // if (false) {
-    //   TOFPETEventIndex = 0; 
-    //   foundMatch = true;
-    //   break;
-    // }
-  }
-  
-  return 0;
-
-
-
-
-
-
-
-
-  // int TOFPETEventIndex = 0;
-  // Long64_t FirstEventTimeTOFPET = -999;
-  // Long64_t FirstEventTimePixel = -999;
-
-  // Long64_t PreviousEventTimePixel = -999;
-  // int PreviousEventTimeTrigger = 0;
-  // Long64_t PreviousEventTimeTOFPET = -999;
-  // int TOFPETTriggerCounter = 1;
-
-
-  // // for (int n=0;n<PixelTree->GetEntries();n++) { 
-  // for (int n=0;n<100;n++) { 
-  //   //if (n%100==0) cout << "Processed Event " << n << "\n";
-  //   PixelTree->GetEntry(n);
-    
-  //   if (n==0) FirstEventTimePixel = pixelEvent.bco; 
-    
-  //   if (!(pixelEvent.bco == -1 || pixelEvent.bco == 923)) {
-  //     //cout << "Event: " << n << " | " << pixelEvent.trigger << " " << pixelEvent.bco*74e-9 << " | " << (pixelEvent.bco - PreviousEventTimePixel)*74 << "\n";
-  //     PreviousEventTimePixel = pixelEvent.bco;
-  //     PreviousEventTimeTrigger = pixelEvent.trigger;
-  //   }
-  // }
-  // return 0;
-
-
-
-    // //********************************************
-    // //Find matching event in TOFPETEventTree;
-    // //********************************************
-    // bool foundMatch = false;
-    // // //    for(int q=TOFPETEventIndex; q < TOFPETEventTree->GetEntries(); q++) {
-    // // for(int q=0; q < TOFPETEventTree->GetEntries(); q++) {
-    // //   TOFPETEventTree->GetEntry(q);
+      if (debugLevel > 100) {
+	cout << "Matched : " << MatchedTriggerIndex << "\n";
+	if (stopSearching) cout << "stopped searching, skip events\n";
+      }
       
-    // //   if (q==0) FirstEventTimeTracker = 
+      TriggerIndexTOFPET++;
 
-    // //   //match
-    // //   if (false) {
-    // // 	TOFPETEventIndex = 0;
-    // // 	foundMatch = true;
-    // // 	break;
-    // //   }
-    // // }
-
-    // //Successfully Matched, so increment TOFPET Event Index
-    // if (foundMatch) {
-    //   cout << "matched event : " << TOFPETEventIndex << " | " 
-    // 	   << chEnergy[41] << " " << chTime[41] 
-    // 	   << "\n";
-
-    //   TOFPETEventIndex++;
-    // } else {
-    //   for (int k=0;k<64;k++) {
-    // 	outputCHID[k] = -1;
-    // 	chTime[k] = -999;
-    // 	chTqT[k] = -999;
-    // 	chEnergy[k] = -999;
-    //   }
-    // }
-    
-    // outputTree->Fill();
-   
+    }
 
 
+    //****************************************
+    // Write output if matched
+    //****************************************
+    if (MatchedTriggerIndex >= 0) {
+      ntracks = 0;
+      for( int iPixelEvent = 0; iPixelEvent < PixelTree->GetEntries(); iPixelEvent++){ 
+	PixelTree->GetEntry(iPixelEvent);
+	if (pixelEvent.trigger == MatchedTriggerIndex) {
+	  xIntercept = pixelEvent.xIntercept;
+	  yIntercept = pixelEvent.yIntercept;
+	  xSlope = pixelEvent.xSlope;
+	  ySlope = pixelEvent.ySlope;
+	  x1 = xIntercept + xSlope*(-50000);
+	  y1 = yIntercept + ySlope*(-50000);
+	  x2 = xIntercept + xSlope*(50000);
+	  y2 = yIntercept + ySlope*(50000);
+	  ntracks++;
+	}
+      } //loop over all pixel events
+    } else {
+      xIntercept = -999;
+      yIntercept = -999;
+      xSlope = -999;
+      ySlope = -999;
+      x1 = -999;
+      y1 = -999;
+      x2 = -999;
+      y2 = -999;  
+      ntracks = -1;
+    }
 
-    
-
-
+    //Fill output tree
+    outputTree->Fill();
+  } // loop over TOFPET events
+  
+ 
   //save
   outputTree->Write();
 
