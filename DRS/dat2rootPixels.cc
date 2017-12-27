@@ -78,10 +78,14 @@ int main(int argc, char **argv) {
 
   std::string inputFilename = argv[1];
   std::string pixelInputFilename = argv[2];
-  std::string outputFilename = argv[3];
+  std::string NimPlusInputFilename = argv[3];
+  std::string StripTrackerTimestampFilename = argv[4];
+  std::string outputFilename = argv[5];
   std::cout << "Input file: " << inputFilename << std::endl;
   std::cout << "Pixel Input file: " << pixelInputFilename << std::endl;
-   std::cout << "Output file: " << outputFilename << std::endl;
+  std::cout << "NimPlus Input file: " << NimPlusInputFilename << std::endl;
+  std::cout << "Strip Tracker Timestamp file: " << StripTrackerTimestampFilename << std::endl;
+  std::cout << "Output file: " << outputFilename << std::endl;
    
   // Check if has valid input file, otherwise exit with error
   ifstream ifile(inputFilename);
@@ -90,7 +94,7 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
-  int nEvents = atoi(argv[4]);
+  int nEvents = atoi(argv[6]);
   std::cout << "Will process " << nEvents << " events" << std::endl;
 
   // Board number is fixed at 1 for now because we only have one board
@@ -173,6 +177,18 @@ int main(int argc, char **argv) {
           tcal[i][j] = tcal_dV[i][j] / dV_sum[i] * 200.0;
       }
   }
+
+
+  //**************************************************
+  // Extract the Trigger Counts from NimPlus Data
+  //**************************************************
+  ifstream NimPlusFile;
+  NimPlusFile.open(NimPlusInputFilename.c_str());
+  int NimPlusEventCount = 0;
+  NimPlusFile >> NimPlusEventCount;
+  cout << "NimPlusEventCount : " << NimPlusEventCount << "\n";
+
+
   
   //**************************************
   // Define output
@@ -181,6 +197,9 @@ int main(int argc, char **argv) {
   TFile* file = new TFile( outputFilename.c_str(), "RECREATE", "CAEN V1742");
   TTree* tree = new TTree("pulse", "Digitized waveforms");
 
+  TH1F *NimPlusEventCountHist = new TH1F("NimPlusEventCountHist",";NEvents;;",1,-0.5,0.5);
+  NimPlusEventCountHist->SetBinContent(1,NimPlusEventCount);
+  
   int event;
   short tc[4]; // trigger counter bin
   float time[4][1024]; // calibrated time
@@ -213,6 +232,7 @@ int main(int argc, char **argv) {
   float y1;
   float x2;
   float y2;
+  int nTracks;
 
   tree->Branch("event", &event, "event/I");
   tree->Branch("tc", tc, "tc[4]/s");
@@ -247,11 +267,15 @@ int main(int argc, char **argv) {
   tree->Branch("y1", &y1, "y1/F");
   tree->Branch("x2", &x2, "x2/F");
   tree->Branch("y2", &y2, "y2/F");
+  tree->Branch("nTracks", &nTracks, "nTracks/I");
 
   // temp variables for data input
   uint   event_header;
   uint   temp[3];
   ushort samples[9][1024];
+
+  
+
 
   //*************************
   // Open Pixel Tree
@@ -309,14 +333,15 @@ int main(int argc, char **argv) {
     for( int iPixelEvent = 0; iPixelEvent < pixelTree->GetEntries(); iPixelEvent++){ 
       pixelTree->GetEntry(iPixelEvent);
       if (pixelEvent.trigger == iEvent) {
+	nTracks++;
 	xIntercept = pixelEvent.xIntercept;
 	yIntercept = pixelEvent.yIntercept;
 	xSlope = pixelEvent.xSlope;
 	ySlope = pixelEvent.ySlope;
-	x1 = xIntercept + xSlope*(-50000);
-	y1 = yIntercept + ySlope*(-50000);
-	x2 = xIntercept + xSlope*(50000);
-	y2 = yIntercept + ySlope*(50000);
+	x1 = xIntercept + xSlope*(0);
+	y1 = yIntercept + ySlope*(0);
+	x2 = xIntercept + xSlope*(1445000);
+	y2 = yIntercept + ySlope*(1445000);
       }
     }
    
