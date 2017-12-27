@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   // Parse command line arguments
   //**************************************
 
-  int numRequiredArgs = 4;
+  int numRequiredArgs = 6;
   if (argc - 1 < numRequiredArgs) {
       std::cerr << "Usage: dat2root in_file.dat inputPixelFile.root outputFile.root num_events" << std::endl;
       return -1;
