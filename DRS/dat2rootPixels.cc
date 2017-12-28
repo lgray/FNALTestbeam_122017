@@ -330,6 +330,7 @@ int main(int argc, char **argv) {
     y1 = -999;
     x2 = -999;
     y2 = -999;  
+    nTracks=0;
     for( int iPixelEvent = 0; iPixelEvent < pixelTree->GetEntries(); iPixelEvent++){ 
       pixelTree->GetEntry(iPixelEvent);
       if (pixelEvent.trigger == iEvent) {
