@@ -57,8 +57,8 @@ scopehdf2root: src/NetScope/scopehdf2root.C src/NetScope/hdf5io.o
 convert_ots2hdf5: src/NetScope/convert_ots2hdf5.C src/NetScope/hdf5io.o src/NetScope/fifo.o
 	$(LD) $(CPPFLAGS) $^ $(LIBS) $(LDFLAGS) -o $@
 
-src/NetScope/hdf5io.o: src/NetScope/hdf5io.cc 
-	$(CC) -Wall -O2 -DH5_NO_DEPRECATED_SYMBOLS -I$(INC)/include/NetScope/ -o $@ -c $<
+#src/NetScope/hdf5io.o: src/NetScope/hdf5io.cc 
+#	$(CC) -Wall -O2 -DH5_NO_DEPRECATED_SYMBOLS -I$(INC)/include/NetScope/ -o $@ -c $<
 
 %.o : %.cc
 	@echo $@
