@@ -33,30 +33,6 @@ TStyle* style;
 
 int graphic_init();
 
-// look for words of size uint that are "0", indicating 
-// that the third word of the header is appearing
-// where it's not supposed to.
-// if found, return "true" and seek back to beginning
-// of the header
-bool found_corruption(FILE* stream, size_t count){
-  if(count < 1)
-    return false;
-
-  uint event_header;
-  int dummy;
-  
-  for(size_t i = 0; i < count; i++){
-    dummy = fread( &event_header, sizeof(uint), 1, stream);
-    if(event_header == 0){
-       fseek(stream, -3*sizeof(uint), SEEK_CUR);
-       return true;
-    }
-  } 
-  // rewind
-  fseek(stream, -count*sizeof(uint), SEEK_CUR);
-  return false;
-}
-
 unsigned createMask(unsigned a, unsigned b)
 {
    unsigned r = 0;
@@ -257,7 +233,6 @@ int main(int argc, char **argv) {
   float x2;
   float y2;
   int nTracks;
-  float chi2;
 
   tree->Branch("event", &event, "event/I");
   tree->Branch("tc", tc, "tc[4]/s");
@@ -293,7 +268,6 @@ int main(int argc, char **argv) {
   tree->Branch("x2", &x2, "x2/F");
   tree->Branch("y2", &y2, "y2/F");
   tree->Branch("nTracks", &nTracks, "nTracks/I");
-  tree->Branch("chi2", &chi2, "chi2/F");
 
   // temp variables for data input
   uint   event_header;
@@ -355,9 +329,7 @@ int main(int argc, char **argv) {
     x1 = -999;
     y1 = -999;
     x2 = -999;
-    y2 = -999;
-    chi2 = -999;
-    nTracks=0;
+    y2 = -999;  
     for( int iPixelEvent = 0; iPixelEvent < pixelTree->GetEntries(); iPixelEvent++){ 
       pixelTree->GetEntry(iPixelEvent);
       if (pixelEvent.trigger == iEvent) {
@@ -366,7 +338,6 @@ int main(int argc, char **argv) {
 	yIntercept = pixelEvent.yIntercept;
 	xSlope = pixelEvent.xSlope;
 	ySlope = pixelEvent.ySlope;
-	chi2 = pixelEvent.chi2;
 	x1 = xIntercept + xSlope*(0);
 	y1 = yIntercept + ySlope*(0);
 	x2 = xIntercept + xSlope*(1445000);
@@ -392,7 +363,7 @@ int main(int argc, char **argv) {
     uint grM     = event_header & 0x0f; // 4-bit channel group mask
     // third and fourth header words
     dummy = fread( &event_header, sizeof(uint), 1, fpin);  
-    dummy = fread( &event_header, sizeof(uint), 1, fpin); 
+    dummy = fread( &event_header, sizeof(uint), 1, fpin);  
 
     // check for end of file
     if (feof(fpin)) break;
@@ -407,11 +378,6 @@ int main(int argc, char **argv) {
     _isGR_On[2] = (grM & 0x04);
     _isGR_On[3] = (grM & 0x08);
     
-    // hard-coded for two DRS4 chips/groups
-    _isGR_On[0] = 1;
-    _isGR_On[1] = 1;
-    _isGR_On[2] = 0;
-    _isGR_On[3] = 0;
     int activeGroupsN = 0;
     int realGroup[4] = {-1, -1, -1, -1};
     for ( int l = 0; l < 4; l++ ) {
@@ -421,30 +387,20 @@ int main(int argc, char **argv) {
 	    activeGroupsN++;
 	  }
     }
- 
-    // check for corrupted binary data
-    bool corruption = false;
-
+    
     //************************************
     // Loop over channel groups
     //************************************
-    //std::cout << activeGroupsN << " activeGroupsN" << std::endl;
+
     for ( int group = 0; group < activeGroupsN; group++ ) {
       // Read group header
-      if(found_corruption(fpin, 1)){
-	corruption = true;
-	break;
-      }
-      dummy = fread( &event_header, sizeof(uint), 1, fpin); 
- 
+      dummy = fread( &event_header, sizeof(uint), 1, fpin);  
       ushort tcn = (event_header >> 20) & 0xfff; // trigger counter bin
       tc[realGroup[group]] = tcn;
-       
+      
       // Check if all channels were active (if 8 channels active return 3072)
       int nsample = (event_header & 0xfff) / 3;
-      //cout << nsample << " nsample" << endl;
-      nsample = 1024;
-
+      
       // Define time coordinate
       time[realGroup[group]][0] = 0.0;
       for( int i = 1; i < 1024; i++ ){
@@ -458,12 +414,7 @@ int main(int argc, char **argv) {
       //************************************      
 
       for ( int i = 0; i < nsample; i++ ) {
-	if(found_corruption(fpin, 3)){
-	  corruption = true;
-	  break;
-	}
 	dummy = fread( &temp, sizeof(uint), 3, fpin );  
-
 	samples[0][i] =  temp[0] & 0xfff;
 	samples[1][i] = (temp[0] >> 12) & 0xfff;
 	samples[2][i] = (temp[0] >> 24) | ((temp[1] & 0xf) << 8);
@@ -474,16 +425,9 @@ int main(int argc, char **argv) {
 	samples[7][i] =  temp[2] >> 20;	
       }
 
-      if(corruption) break;
-    
       // Trigger channel
       for(int j = 0; j < nsample/8; j++){
-	if(found_corruption(fpin, 3)){
-	  corruption = true;
-	  break;
-	}
 	fread( &temp, sizeof(uint), 3, fpin);  
-
 	samples[8][j*8+0] =  temp[0] & 0xfff;
 	samples[8][j*8+1] = (temp[0] >> 12) & 0xfff;
 	samples[8][j*8+2] = (temp[0] >> 24) | ((temp[1] & 0xf) << 8);
@@ -494,8 +438,6 @@ int main(int argc, char **argv) {
 	samples[8][j*8+7] =  temp[2] >> 20;
       }
 
-      if(corruption) break;
-    
       //************************************
       // Loop over channels 0-8
       //************************************      
@@ -664,10 +606,7 @@ int main(int argc, char **argv) {
 	
 	delete pulse;
       }
-      if(found_corruption(fpin, 1)){
-	corruption = true;
-	break;
-      }
+      
       dummy = fread( &event_header, sizeof(uint), 1, fpin);
 
       if (group == 0) {
@@ -678,10 +617,6 @@ int main(int argc, char **argv) {
       }
     }
     
-    // encountered a header for another event while
-    // processing this one, discarding it
-    if(corruption) continue;
-
     tree->Fill();
     nGoodEvents++; 
   }
