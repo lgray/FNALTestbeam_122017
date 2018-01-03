@@ -233,7 +233,6 @@ int main(int argc, char **argv) {
   float x2;
   float y2;
   int nTracks;
-  float chi2;
 
   tree->Branch("event", &event, "event/I");
   tree->Branch("tc", tc, "tc[4]/s");
@@ -269,7 +268,6 @@ int main(int argc, char **argv) {
   tree->Branch("x2", &x2, "x2/F");
   tree->Branch("y2", &y2, "y2/F");
   tree->Branch("nTracks", &nTracks, "nTracks/I");
-  tree->Branch("chi2", &chi2, "chi2/F");
 
   // temp variables for data input
   uint   event_header;
@@ -331,9 +329,7 @@ int main(int argc, char **argv) {
     x1 = -999;
     y1 = -999;
     x2 = -999;
-    y2 = -999;
-    chi2 = -999;
-    nTracks=0;
+    y2 = -999;  
     for( int iPixelEvent = 0; iPixelEvent < pixelTree->GetEntries(); iPixelEvent++){ 
       pixelTree->GetEntry(iPixelEvent);
       if (pixelEvent.trigger == iEvent) {
@@ -342,7 +338,6 @@ int main(int argc, char **argv) {
 	yIntercept = pixelEvent.yIntercept;
 	xSlope = pixelEvent.xSlope;
 	ySlope = pixelEvent.ySlope;
-	chi2 = pixelEvent.chi2;
 	x1 = xIntercept + xSlope*(0);
 	y1 = yIntercept + ySlope*(0);
 	x2 = xIntercept + xSlope*(1445000);
