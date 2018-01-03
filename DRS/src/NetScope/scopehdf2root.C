@@ -19,6 +19,10 @@
 #include <TGraphErrors.h>
 #include <TCanvas.h>
 
+//LOCAL INCLUDES
+#include "Aux.hh"
+
+// NetScope INCLUDES
 #include "common.h"
 #include "hdf5io.h"
 
@@ -44,6 +48,13 @@ std::string ParseCommandLine( int argc, char* argv[], std::string opt )
 int main(int argc, char **argv) {
   size_t i, j, iCh, iEvent=0, nEvents=0, frameSize, nEventsInFile;
   char *inFileName;
+
+  // hardcoded number of time samples for pulses
+  int NSAMPLES = 1000;
+
+  // need to do a reverse ADC to use same
+  // code as DRS, then reverse
+  float ADC = (1.0 / 4096.0);
   
   struct hdf5io_waveform_file *waveformFile;
   struct waveform_attribute waveformAttr;
@@ -106,8 +117,8 @@ int main(int argc, char **argv) {
   
   // initialization of variables for TTree output
   int event;
-  float time[2][1000]; // calibrated time
-  float channel[4][1000]; // input (in V)
+  float time[2][NSAMPLES]; // calibrated time
+  float channel[4][NSAMPLES]; // input (in V)
   float xmin[4]; // location of peak
   float base[4]; // baseline voltage
   float amp[4]; // pulse amplitude
@@ -125,6 +136,24 @@ int main(int argc, char **argv) {
   float risetime[4]; 
   float constantThresholdTime[4];
   bool _isRinging[4];
+
+  for(iCh=0; iCh<4; iCh++) {
+    xmin[iCh] = 0.;
+    amp [iCh] = 0.;
+    base[iCh] = 0.;
+    integral[iCh] = 0.;
+    integralFull[iCh] = 0.;
+    gauspeak[iCh] = 0.;
+    sigmoidTime[iCh] = 0.;
+    linearTime0[iCh] = 0.;
+    linearTime15[iCh] = 0.;
+    linearTime30[iCh] = 0.;
+    linearTime45[iCh] = 0.;
+    linearTime60[iCh] = 0.;
+    risetime[iCh] = 0.;
+    constantThresholdTime[iCh] = 0.;
+    _isRinging[iCh] = false;
+  }
 
   tree->Branch("event", &event, "event/I");
   tree->Branch("channel", channel, "channel[4][1000]/F");
@@ -162,7 +191,7 @@ int main(int argc, char **argv) {
     
     event = waveformEvent.eventId;
     
-    for(i = 0; i < 1000; i++) {
+    for(i = 0; i < NSAMPLES; i++) {
       if(i < waveformFile->nPt)
 	time[0][i] = waveformAttr.dt*(i%frameSize);
       else
@@ -172,10 +201,10 @@ int main(int argc, char **argv) {
       for(iCh=0; iCh<SCOPE_NCH; iCh++) {
 	if((1<<iCh) & waveformAttr.chMask) {
 	  if(i < waveformFile->nPt){
-	    channel[iCh][i] = (waveformBuf[j * waveformFile->nPt + i]
+	    channel[iCh][i] = ((waveformBuf[j * waveformFile->nPt + i]
 			       - waveformAttr.yoff[iCh])
 	      * waveformAttr.ymult[iCh]
-	      + waveformAttr.yzero[iCh];
+	      + waveformAttr.yzero[iCh]) / ADC;
 	  } else {
 	    channel[iCh][i] = 0.;
 	  }
@@ -191,6 +220,103 @@ int main(int argc, char **argv) {
       // 	printf("\n");
     }
     // printf("\n");
+
+    // loop over channels for pulse processing
+    for(iCh=0; iCh<SCOPE_NCH; iCh++) {
+      if((1<<iCh) & waveformAttr.chMask) {
+	xmin[iCh] = 0.;
+	amp [iCh] = 0.;
+	base[iCh] = 0.;
+	integral[iCh] = 0.;
+	integralFull[iCh] = 0.;
+	gauspeak[iCh] = 0.;
+	sigmoidTime[iCh] = 0.;
+	linearTime0[iCh] = 0.;
+	linearTime15[iCh] = 0.;
+	linearTime30[iCh] = 0.;
+	linearTime45[iCh] = 0.;
+	linearTime60[iCh] = 0.;
+	risetime[iCh] = 0.;
+	constantThresholdTime[iCh] = 0.;
+	
+	// Make pulse shape graph
+	TString pulseName = Form("pulse_event%d_ch%d", event, iCh);
+	TGraphErrors* pulse = GetTGraph( channel[iCh], time[0] );
+
+	// Estimate baseline
+	float baseline;
+	baseline = GetBaseline( pulse, 5 ,150, pulseName );
+        base[iCh] = baseline;
+
+	// Correct pulse shape for baseline offset + amp/att
+	for(int j = 0; j < NSAMPLES; j++) {
+ 	  channel[iCh][j] = channel[iCh][j] + baseline;
+	}
+
+	int index_min = FindMinAbsolute(NSAMPLES, channel[iCh]);
+	
+	// Recreate the pulse TGraph using baseline-subtracted channel data
+	delete pulse;
+	pulse = GetTGraph( channel[iCh], time[0] );
+
+	xmin[iCh] = index_min;
+
+	Double_t tmpAmp = 0.0;
+	Double_t tmpMin = 0.0;
+	pulse->GetPoint(index_min, tmpMin, tmpAmp);
+	amp[iCh] = tmpAmp * ADC;
+
+	// Get pulse integral
+	if ( xmin[iCh] != 0 ) {
+	  integral[iCh] = GetPulseIntegral( index_min, 20, channel[iCh], time[0] );
+	  integralFull[iCh] = GetPulseIntegral( index_min , channel[iCh], "full");
+        }
+	else {
+	  integral[iCh] = 0.0;
+	  integralFull[iCh] = 0.0;
+        }
+
+	// Gaussian time stamp and constant-fraction fit
+	Double_t min = 0.; Double_t low_edge = 0.; Double_t high_edge = 0.; Double_t y = 0.; 
+	pulse->GetPoint(index_min, min, y);	
+	pulse->GetPoint(index_min-4, low_edge, y); // time of the low edge of the fit range
+	pulse->GetPoint(index_min+4, high_edge, y);  // time of the upper edge of the fit range
+
+	float timepeak   = 0;
+        float fs[6]; // constant-fraction fit output
+	float fs_falling[6]; // falling exp timestapms
+	float cft_low_range  = 0.03;
+	float cft_high_range = 0.20;
+       
+	if(xmin[iCh] != 0.0) {
+	  timepeak =  GausFit_MeanTime(pulse, low_edge, high_edge);
+	  RisingEdgeFitTime( pulse, index_min, cft_low_range, cft_high_range, fs, event, "linearFit_" + pulseName, false );
+	}
+
+	_isRinging[iCh] = isRinging( index_min, channel[iCh] );
+        // for output tree
+	gauspeak[iCh] = timepeak;
+	risetime[iCh] = fs[0];
+	linearTime0[iCh] = fs[1];
+	linearTime15[iCh] = fs[2];
+	linearTime30[iCh] = fs[3];
+	linearTime45[iCh] = fs[4];
+	linearTime60[iCh] = fs[5];
+	fallingTime[iCh] = fs_falling[0];
+	constantThresholdTime[iCh] = ConstantThresholdTime( pulse, 75);
+
+	// reconvert to "mV" with ADC factor
+	for(int s = 0; s < NSAMPLES; s++)
+	  channel[iCh][s] *= ADC;
+	
+	delete pulse;
+	 
+        
+	
+      }
+    }
+
+    
     tree->Fill();
   }
 

@@ -96,6 +96,21 @@ void NotchFilter( short* channel, double* filteredCurrent, float* time, double R
   return;
 };
 
+TGraphErrors* GetTGraph( float* channel, float* time )
+{		
+  //Setting Errors
+  float errorX[1024], errorY[1024], channelFloat[1024];
+  float _errorY = 0.00; //5%error on Y
+  for ( int i = 0; i < 1024; i++ )
+    {
+      errorX[i]       = .0;
+      errorY[i]       = _errorY*channel[i];
+      channelFloat[i] = -channel[i];
+    }
+  TGraphErrors* tg = new TGraphErrors( 1024, time, channelFloat, errorX, errorY );
+  return tg;
+};
+
 TGraphErrors* GetTGraph( double* channel, float* time )
 {		
   //Setting Errors
@@ -151,6 +166,21 @@ int FindMinAbsolute( int n, short *a) {
   return loc;
 }
 
+int FindMinAbsolute( int n, float *a) {
+
+  if (n <= 0 || !a) return -1;
+  float xmin = a[5];
+  int loc = 0;
+  for  (int i = 5; i < n-10; i++) {
+    if ( a[i] < xmin  && a[i+1] < 0.5*a[i] && a[i] < -40. )  
+      { 
+	xmin = a[i];
+	loc = i;
+      }
+  }
+  
+  return loc;
+}
   
 int FindMinAbsolute( int n, double *a) {
     
@@ -707,7 +737,38 @@ float GetPulseIntegral(int peak, short *a, std::string option)
 
 }
 
+float GetPulseIntegral(int peak, float *a, std::string option) 
+{
+  float integral = 0.;
+
+  if (option == "full") {
+    for (int i=5; i < 1020; i++) {
+      integral += a[i] * 0.2 * 1e-9 * (1.0/4096.0) * (1.0/50.0) * 1e12; //in units of pC, for 50Ohm termination
+    }
+  }
+  else {
+    for (int i=peak-20; i < peak+25; i++) {
+      integral += a[i] * 0.2 * 1e-9 * (1.0/4096.0) * (1.0/50.0) * 1e12; //in units of pC, for 50Ohm termination
+    }
+  }
+  return -1.0 * integral;
+
+}
+
 float GetPulseIntegral(int peak, int nsamples, short *a, float *t) //returns charge in pC asssuming 50 Ohm termination
+{
+  float integral = 0.;
+    for (int i=peak-nsamples; i < peak+nsamples; i++) {
+      //Simpson's Rule for equaled space-->Cartwright correction for unequaled space, only worked for odd points
+      integral += ( (t[i+2]-t[i]) / 6.0 ) * ( ( 2-(t[i+2]-t[i+1])/(t[i+1]-t[i]) )* a[i] + (t[i+2]-t[i])*(t[i+2]-t[i])/((t[i+2]-t[i+1])*(t[i+1]-t[i])) * a[i+1] + ( 2-(t[i+1]-t[i])/(t[i+2]-t[i+1]) ) * a[i+2] ) * 1e-9 * (1.0/4096.0) * (1.0/50.0) * 1e12; //in units of pC, for 50Ohm termination
+      i++;
+    }
+    
+  return -1.0 * integral;
+
+}
+
+float GetPulseIntegral(int peak, int nsamples, float *a, float *t) //returns charge in pC asssuming 50 Ohm termination
 {
   float integral = 0.;
     for (int i=peak-nsamples; i < peak+nsamples; i++) {
@@ -798,6 +859,23 @@ TGraphErrors* WeierstrassTransform( short* channel, float* time, TString pulseNa
 };
 
 bool isRinging( int peak, short *a )
+{
+  short left_max, right_max;//Left and right maximum amplitude from the minimum
+  left_max  = a[peak];
+  right_max = a[peak];
+  
+  for ( int i = 1; i < 150; i++)
+    {
+      if ( a[peak-i] > left_max )  left_max  = a[peak-i];
+      if ( a[peak+i] > right_max ) right_max = a[peak+i];
+    }
+
+  if ( left_max  > 0.5*fabs(a[peak]) ) return true;
+  if ( right_max > 0.5*fabs(a[peak]) ) return true;
+  return false;
+};
+
+bool isRinging( int peak, float *a )
 {
   short left_max, right_max;//Left and right maximum amplitude from the minimum
   left_max  = a[peak];

@@ -442,7 +442,8 @@ int main(int argc, char **argv) {
        
       // Check if all channels were active (if 8 channels active return 3072)
       int nsample = (event_header & 0xfff) / 3;
-      //cout << nsample << " nsample" << endl;
+
+      // hard-coded to protect against corruption
       nsample = 1024;
 
       // Define time coordinate
