@@ -21,6 +21,7 @@ double GetAmplificationFactor ( double measuredAmplitude );
 TGraphErrors* WeierstrassTransform( short* channel, float* time, TString pulseName, double sigma = 1.0, bool makePlot = false );
 TGraphErrors* GetTGraph( double* channel, float* time );
 TGraphErrors* GetTGraph( float* channel, float* time );
+TGraphErrors* GetTGraph( float* channel, float* time, const TString& );
 TGraphErrors GetTGraph( short* channel, float* time );
 double GetGaussTime( TGraphErrors* pulse );
 void HighPassFilter( short* channel, double* filteredCurrent, float* time, double R = -1.0, double C = -1.0 );

@@ -107,7 +107,28 @@ TGraphErrors* GetTGraph( float* channel, float* time )
       errorY[i]       = _errorY*channel[i];
       channelFloat[i] = -channel[i];
     }
-  TGraphErrors* tg = new TGraphErrors( 1024, time, channelFloat, errorX, errorY );
+  TGraphErrors* tg = new TGraphErrors( 1000, time, channelFloat, errorX, errorY );
+  return tg;
+};
+
+TGraphErrors* GetTGraph( float* channel, float* time, const TString& fname )
+{		
+  //Setting Errors
+  float errorX[1024], errorY[1024], channelFloat[1024];
+  float _errorY = 0.00; //5%error on Y
+  for ( int i = 0; i < 1024; i++ )
+    {
+      errorX[i]       = .0;
+      errorY[i]       = _errorY*channel[i];
+      channelFloat[i] = -channel[i];
+    }
+  TGraphErrors* tg = new TGraphErrors( 1000, time, channelFloat, errorX, errorY );
+
+  TCanvas* c = new TCanvas("canvas","canvas",800,400);  
+  tg->Draw("AP");
+  c->SaveAs(fname+"_RawPulse.pdf");
+  delete c;
+
   return tg;
 };
 
@@ -289,9 +310,11 @@ int FindMinFirstPeakAboveNoise( int n, short *a) {
 // find the mean time from gaus fit
 float GausFit_MeanTime(TGraphErrors* pulse, const float index_first, const float index_last)
 {
-  TF1* fpeak = new TF1("fpeak","gaus", index_first, index_last);
-  pulse->Fit("fpeak","Q","", index_first, index_last);
+  TF1* fpeak = new TF1("fpeak","gaus", index_first-2e-10, index_last+3e-10);
+  pulse->Fit("fpeak","Q","", index_first-2e-10, index_last+3e-10);
   
+  //std::cout << index_first << ' ' << index_last << std::endl;
+
   float timepeak = fpeak->GetParameter(1);
   delete fpeak;
   
@@ -300,7 +323,7 @@ float GausFit_MeanTime(TGraphErrors* pulse, const float index_first, const float
 
 float GausFit_MeanTime(TGraphErrors* pulse, const float index_first, const float index_last, TString fname)
 {
-  TF1* fpeak = new TF1("fpeak","gaus", index_first, index_last);
+  TF1* fpeak = new TF1("fpeak","gaus", index_first-2e-10, index_last+3e-10);
   //float max = pulse->GetMaximum();
   double max = -9999;
   double* yy = pulse->GetY();
@@ -310,13 +333,13 @@ float GausFit_MeanTime(TGraphErrors* pulse, const float index_first, const float
     }
   //std::cout << "max: " << max << std::endl;
   //if( max < 42 || index_first < 10 || index_last > 1010 ) return -99999;
-  pulse->Fit("fpeak","Q","", index_first, index_last);
+  pulse->Fit("fpeak","Q","", index_first-2e-10, index_last+3e-10);
   
   TCanvas* c = new TCanvas("canvas","canvas",800,400) ;
   float timepeak = fpeak->GetParameter(1);
-  pulse->GetXaxis()->SetLimits( timepeak-10, timepeak+10);
-  pulse->SetMarkerSize(0.5);
-  pulse->SetMarkerStyle(20);
+  //pulse->GetXaxis()->SetLimits( timepeak-10, timepeak+10);
+  //pulse->SetMarkerSize(0.5);
+  //pulse->SetMarkerStyle(20);
   pulse->Draw("AP");
   c->SaveAs(fname+"GausPeakPlots.pdf");
   delete fpeak;
@@ -342,13 +365,14 @@ float RisingEdgeFitTime(TGraphErrors * pulse, const float index_min, const float
     {
       std::cout << "make plot" << std::endl;
       TCanvas* c = new TCanvas("canvas","canvas",800,400) ;
-      pulse->GetXaxis()->SetLimits(x_low-100, x_high+100);
-      pulse->SetMarkerSize(0.3);
-      pulse->SetMarkerStyle(20);
+      c->cd();
+      //pulse->GetXaxis()->SetLimits(x_low-100, x_high+100);
+      //pulse->SetMarkerSize(0.3);
+      //pulse->SetMarkerStyle(20);
       pulse->Draw("AP");
-      c->SaveAs(fname+"LinearFit.pdf");
-      c->SaveAs(fname+"LinearFit.png");
-      //delete c;
+      c->SaveAs(fname+"LinearFit.C");
+      //c->SaveAs(fname+"LinearFit.png");
+      delete c;
     }
   delete flinear;
   
@@ -395,9 +419,9 @@ void RisingEdgeFitTime(TGraphErrors * pulse, const float index_min, float* tstam
     {
       std::cout << "make plot" << std::endl;
       TCanvas* c = new TCanvas("canvas","canvas",800,400) ;
-      pulse->GetXaxis()->SetLimits(x_low-50, x_high+150);
-      pulse->SetMarkerSize(0.3);
-      pulse->SetMarkerStyle(20);
+      //pulse->GetXaxis()->SetLimits(x_low-50, x_high+150);
+      //pulse->SetMarkerSize(0.3);
+      //pulse->SetMarkerStyle(20);
       pulse->Draw("AP");
       line->Draw("same");
       line->SetLineColor(kRed);
@@ -444,7 +468,7 @@ void RisingEdgeFitTime(TGraphErrors * pulse, const float index_min, const float 
   tstamp[1] = (0.0*ymax-b)/slope;
   tstamp[2] = (0.15*ymax-b)/slope;
   tstamp[3] = (0.30*ymax-b)/slope;
-  tstamp[4] = (0.45*ymax-b)/slope;
+  tstamp[4] = (0.50*ymax-b)/slope;
   tstamp[5] = (0.60*ymax-b)/slope;
   
   TLine* line  = new TLine( tstamp[2], 0, tstamp[2], 1000);
@@ -453,14 +477,14 @@ void RisingEdgeFitTime(TGraphErrors * pulse, const float index_min, const float 
     {
       std::cout << "make plot" << std::endl;
       TCanvas* c = new TCanvas("canvas","canvas",800,400) ;
-      pulse->GetXaxis()->SetLimits(x_low-10, x_high+10);
-      pulse->SetMarkerSize(0.3);
-      pulse->SetMarkerStyle(20);
-      pulse->Draw("AP");
-      line->Draw("same");
+      //pulse->GetXaxis()->SetLimits(x_low-10, x_high+10);
+      //pulse->SetMarkerSize(0.3);
+      //pulse->SetMarkerStyle(20);
+      pulse->Draw("AP");      
       line->SetLineColor(kRed);
       line->SetLineWidth(2);
       line->SetLineStyle(2);
+      line->Draw("same");
       c->SaveAs(fname+"LinearFit.pdf");
       //c->SaveAs(fname+"LinearFit.gif");
       //c->SaveAs(fname+"LinearFit.png");
@@ -468,6 +492,7 @@ void RisingEdgeFitTime(TGraphErrors * pulse, const float index_min, const float 
     }
 
   delete flinear;
+  delete line;
 };
 
 

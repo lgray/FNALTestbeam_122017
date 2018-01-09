@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 
   // need to do a reverse ADC to use same
   // code as DRS, then reverse
-  float ADC = (1.0 / 4096.0);
+  const float ADC = (1.0 / 4096.0);
   
   struct hdf5io_waveform_file *waveformFile;
   struct waveform_attribute waveformAttr;
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
 	
 	// Recreate the pulse TGraph using baseline-subtracted channel data
 	delete pulse;
-	pulse = GetTGraph( channel[iCh], time[0] );
+	pulse = GetTGraph( channel[iCh], time[0]); //, pulseName 
 
 	xmin[iCh] = index_min;
 
@@ -285,10 +285,11 @@ int main(int argc, char **argv) {
 	float timepeak   = 0;
         float fs[6]; // constant-fraction fit output
 	float fs_falling[6]; // falling exp timestapms
-	float cft_low_range  = 0.03;
-	float cft_high_range = 0.20;
+	float cft_low_range  = 0.15;
+	float cft_high_range = 0.85;
        
 	if(xmin[iCh] != 0.0) {
+	  //timepeak =  GausFit_MeanTime(pulse, low_edge, high_edge, "gausFit_" + pulseName);
 	  timepeak =  GausFit_MeanTime(pulse, low_edge, high_edge);
 	  RisingEdgeFitTime( pulse, index_min, cft_low_range, cft_high_range, fs, event, "linearFit_" + pulseName, false );
 	}
